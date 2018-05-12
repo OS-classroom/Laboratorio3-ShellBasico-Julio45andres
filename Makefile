@@ -1,7 +1,7 @@
 fCC=gcc
 CFLAGS=-I.
-DEPS=parser.h psinfo.h
-OBJ=parser.o psinfo.o prompt.o 
+DEPS=parser.h psinfo.h bashnroll.h
+OBJ=parser.o psinfo.o bashnroll.o prompt.o 
 
 %.o: %.c $(DEPS)
 	$(CC) -Wall -c -o $@ $< $(CFLAGS)

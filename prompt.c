@@ -9,6 +9,7 @@
 
 #include "parser.h"
 #include "psinfo.h"
+#include "bashnroll.h"
 
 #define TAM 100
 #define NUM_PROCS 50
@@ -27,8 +28,6 @@ typedef struct String {
 bool equals(char *x, char *y);
 void usage(char *use);
 void invoke(char *proc_path, char **params, int background);
-char* f_pwd();
-void f_copy(char *source, char *destination);
 
 int main(void){
     char ** items;
@@ -36,6 +35,10 @@ int main(void){
     int num, background;
     char expresion[TAM];
     char *cmd;
+
+    printf("       Bash&Roll🤘\n      Julián Muñoz\n");
+    printf("Universidad de Antioquia\n Facultad de ingenieria\n");
+    printf("          2018\n\n");
 
     while(!end){
         /*Wait for input*/
@@ -80,17 +83,6 @@ int main(void){
         else if(equals(cmd, "psinfo")){
             Proc procs[NUM_PROCS];
             print_info(procs, num, items);
-            // char *cwd;
-            // cwd = f_pwd();
-            // if(cwd != NULL){
-            //     printf("%s\n", cwd);
-            // }
-            // else{
-            //     strncpy(cwd, mypath[1], TAM*10);
-            // }
-            // snprintf(proc_path, TAM, "%s/%s", cwd, cmd);
-            // invoke(proc_path, items, background);
-            // printf("\n");
         }
         else if(equals(cmd, "grep")){
             invoke("/bin/grep", items, background);
@@ -130,52 +122,4 @@ bool equals(char *x, char *y){
 
 void usage(char *use){
     printf("Usage: %s\n", use);
-}
-
-char * f_pwd(){
-    size_t alloc_size = sizeof(char) * TAM*10;
-    char *cwd = malloc(alloc_size);
-    if (getcwd(cwd, alloc_size) != NULL)
-        return cwd;
-    else{
-        perror("getcwd() error");
-        return NULL;
-    }
-}
-
-void f_copy(char *source, char *destination){
-    size_t alloc_size = sizeof(char) * TAM*20;
-
-    char *cwd;
-    char *src_path = malloc(alloc_size);
-    char *dest_path = malloc(alloc_size);
-    char *content = malloc(alloc_size);
-    cwd = f_pwd();
-    if(cwd == NULL){
-        printf("Can't read the file path");
-    }
-
-    snprintf(src_path, TAM*20, "%s/%s", cwd, source);
-    int fd = open(src_path, O_RDONLY);
-
-    if(fd < 0){
-        printf("Source file don't exist\n");
-        return;
-    }
-    if(read(fd, content, alloc_size) < 0){
-        printf("Could'n read source file\n");
-        return;
-    }
-    close(fd);
-    snprintf(dest_path, TAM*10, "%s/%s", cwd, destination);
-    printf("File copied at %s\n", dest_path);
-    fd = open(dest_path, O_RDWR | O_APPEND | O_CREAT, 0644);
-    if(write(fd, content, alloc_size) < 0){
-        printf("Could'n copy to destination file\n");
-        return;
-    }
-    close(fd);
-    free(cwd);
-    free(src_path);
-    free(dest_path);
 }
