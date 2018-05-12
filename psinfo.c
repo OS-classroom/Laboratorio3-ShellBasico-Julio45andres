@@ -2,105 +2,262 @@
 * Julián Muñoz M 
 * SO y lab 2018 -1
 * UdeA
+* 
+* Para ejecutarlo de forma global, copie el archivo psinfo a la carpeta
+* ~/bin y asegurase que esta se encuentra en el $PATH con cat $PATH.
 */
 
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h> 
+// TODO: implementar un buffer
 
-void usage(char *filename);
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h> 
+#include <ctype.h>
+
+typedef struct Procs {
+    char *pid;
+    char **psinfo;
+} Proc;
+
+/* Se define el tipo de datos booleano */
+typedef int bool;
+#define true 1
+#define false 0
+
+// El maximo número de caracteres para un nombre de archivo.
+#define FILENAME_MAX 4096
+// Se puede configurar en algunas máquinas hasta valores 2^22, este número es de 7
+// cifras.
+#define PID_MAX 7
+
+#define TAM 50
+
+void app_usage(char *filename);
 int searchInFile(char *filename, char *s);
-void print_status(char *tgid);
+char ** get_status(char *pid);
+char * trim(int left_offset, char *line);
+void print_info(Proc *procs, int argc, char *argv[]);
 
-int main (int argc, char *argv[]){
-
-    // int result;
-    if(argc < 2 || argc > 2){
-        usage(argv[0]);
+void print_info(Proc *procs, int argc, char *argv[]){
+    if(argc < 2){
+        // para remover el ./
+        app_usage(argv[0]+2);
         exit(1);
     }
+    bool list = false;
+    bool save = false;
 
- /*    printf("%s", argv[1]);
-
-    char str[30] = "VmData";
-    char *fname = "/proc/";
-    strncat(fname, argv[1], 5);
-    strncat(fname, "/status", 10); */
-
-    /* if(result == -1){
-        perror("Error");
+    printf("\n");
+    /**/
+    // i: primer pid
+    int i;
+    if(argc == 2){
+        i = 1;
+    } else if(strncmp(argv[1], "-l", 2) == 0 && strncmp(argv[2], "-r", 2) != 0){
+        list = true;
+        save = false;
+        i = 2;
+    } else if(strncmp(argv[1], "-l", 2) == 0 && strncmp(argv[2], "-r", 2) == 0){
+        list = true;
+        save = true;
+        i = 3;
+    } else  if(strncmp(argv[1], "-r", 2) == 0 && strncmp(argv[2], "-l", 2) != 0 && argc <= 3){
+        save = true;
+        list = false;
+        i = 2;
+    }
+    else if(strncmp(argv[1], "-r", 2) == 0 && strncmp(argv[2], "-l", 2) == 0){
+        save = true;
+        list = true;
+        i = 3;
+    } else{
+        app_usage(argv[0]+2);
         exit(1);
-    } */
+    }
+    /**/
 
-    print_status(argv[1]);
+    FILE *report;
+    char filename[FILENAME_MAX];
 
-    return 0;
+    if(save){
+        char item[PID_MAX+1] = "-";
+        // cat /tmp/psinfo-report-[PID's].txt
+        // strncpy(filename, "/home/julio/psinfo-report", FILENAME_MAX);
+        strncpy(filename, "/tmp/psinfo-report", FILENAME_MAX);
+        for(int j = i; j < argc; j++){
+            strncat(item, argv[j], PID_MAX+1);
+            strncat(filename, item, FILENAME_MAX);
+            snprintf(item, PID_MAX, "-");
+        }
+        strncat(filename, ".txt", FILENAME_MAX);
+        report = fopen(filename, "w");
+        if(report == NULL) {
+            printf("No se pudo guardar el archivo.\n");
+            exit(1);
+        }
+    }
+
+    /* Si se tiene la opción -r se guarda la salida en el archivo destino,
+     * mientras se imprime la info en consola.
+     */
+    if(list){
+        for(int j = i; j < argc; j++){
+            procs[j].pid = argv[j];
+            char** psinfo = get_status(argv[j]);
+            procs[j].psinfo = psinfo;
+            if(psinfo == NULL) {
+                printf("PID: %s, no válido\n", argv[j]);
+                exit(1);
+            }
+            for(int k = 0; k < 11; k++){
+                printf("%s", procs[j].psinfo[k]);
+                if(save){
+                    fprintf(report, "%s", psinfo[k]);
+                } //se libera cada bloque de memoria k
+                free(psinfo[k]);
+            } //se libera el bloque de memoria asignado a psinfo
+            free(psinfo);
+        }
+    } else{
+        char** psinfo = get_status(argv[i]);
+        procs[0].pid = argv[i];
+        procs[0].psinfo = psinfo;
+        if(psinfo == NULL) {
+                printf("PID: %s, no válido\n", argv[i]);
+                exit(1);
+        }
+        for(int k = 0; k < 11; k++){
+            printf("%s", psinfo[k]);
+            if(save){
+                    fprintf(report, "%s", psinfo[k]);
+            }
+            free(psinfo[k]);
+        }
+        free(psinfo);
+    }
+    if(save) { 
+            fclose(report);
+            printf("\nSe ha guardado el reporte en la ruta: ");
+            printf("\n%s\n\n", filename);
+    }
 }
 
-void usage(char *app){
-    printf("Usage: %s [PID]\n\n", app);
+void app_usage(char *app){
+    printf("Uso:\t%s [PID]\n", app);
+    printf("\t%s -l [PID's]\n", app);
+    printf("\t%s -l -r [PID's]\n", app);
+    printf("\t%s -r [PID]\n", app);
+    printf("\t%s -r - l [PID's]\n", app);
 }
 
-void print_status(char *tgid){
-    printf("%s\n", tgid);
-    int salto = 0;
+// Función parser
+char ** get_status(char *pid){
+    // Crea un array de strings de 50 posiciones
+    char** psinfo = malloc(TAM * sizeof(char*));
+    // Asigna a cada string un region de memoria de 50 caracteres cada una.
+    for(int i = 0; i < 20; i++) 
+        psinfo[i] = malloc(TAM * sizeof(char));
+    
+    // Para moverse a la siguiente linea de la información del proceso
+    int j = 0;
+    /* snprintf crea un string con un buffer de n=50 en este caso, usando el tercer
+     * y el cuarto argumento, como en la función printf, finalmente almacena el resultado en el primer parametro
+     * en este caso es la variable psinfo[0].
+     * 
+     * j++ aumenta a j en 1 despues de realizar la operación, ++j lo hace antes de la
+     * operación.
+     */
+    snprintf(psinfo[j++], TAM, "********* PID del proceso: %s *********\n", pid);
+    int offset = 0;
 
-    char path[40], line[100], *p;
+    char path[40], line[100];
+    // nombre del atributo, por ejemplo Nombre
+    char *attr_name;
+    // Esta cadena es el value del atributo.
+    char *value;
     FILE *statusf;
 
-    snprintf(path, 40, "/proc/%s/status", tgid);
-    printf("/proc/%s/status\n", tgid);
+    // Crea la ruta para el proceso
+    snprintf(path, 40, "/proc/%s/status", pid);
+
+    snprintf(psinfo[j++], TAM, "Ruta:\t\t/proc/%s/status\n", pid);
+    
+    // La opción r es para leer el archivo psinfo en el archivo psinfo del proceso,
+    // el contenido de este se guarda en la variable statusf, de "psinfo file"
     statusf = fopen(path, "r");
     if(!statusf)
-        return;
+        return NULL;
     
+    /* Mientras statusf tenga lineas, aqui se hacen 2 operaciones, se extrae una linea
+     * de statusf y se almacena en la variable line y la vez se comprueba si se ha 
+     * terminado de leer el archivo.
+     * 
+     * La función fgets es la alternativa segura a gets
+     */
     while(fgets(line, 100, statusf)){
+        // La función strncmp, compara 2 strings y devuelve 0 si son iguales.
         if(strncmp(line, "Name:", 5) == 0)
-        {
-            salto = 6;
+        {   // Sirve para saltarse los caracteres Name: y obtener el value de la linea
+            // Ejemplo 1: si la linea es "Name: gedit", se obtiene "gedit".
+            offset = 6;
+            attr_name = "Nombre: \t";
+            value = trim(offset, line);
         }
-        if(strncmp(line, "Groups:", 7) == 0){
-            salto = 8;
-            printf("groups:\n)");
+        if(strncmp(line, "State:", 6) == 0)
+        {
+            offset = 7;
+            attr_name = "Estado: \t";
+            value = trim(offset, line);
+        }
+        if(strncmp(line, "VmData:", 7) == 0){
+            offset = 8;
+            snprintf(psinfo[j++], TAM, "Tamaño de las regiones de memoria:\n");
+            attr_name = "\tDATA: \t\t";
+            value = trim(offset, line);
+        }
+        if(strncmp(line, "VmStk:", 6) == 0){
+            offset = 7;
+            attr_name = "\tSTACK: \t\t";
+            value = trim(offset, line);
         } 
-        if(salto == 0)
+        if(strncmp(line, "VmExe:", 6) == 0){
+            offset = 7;
+            attr_name = "\tTEXT: \t\t";
+            value = trim(offset, line);
+        }
+        if(strncmp(line, "voluntary_ctxt_switches:", 24) == 0){
+            offset = 25;
+            snprintf(psinfo[j++], TAM, "Número de cambios de contexto realizados:\n");
+            attr_name = "\tVoluntarios: \t";
+            value = trim(offset, line);
+        }
+        if(strncmp(line, "nonvoluntary_ctxt_switches:", 27) == 0){
+            offset = 28;
+            attr_name = "\tNo voluntarios: ";
+            value = trim(offset, line);
+        }
+        // Si offset = 0 significa que ya la linea no contiene la info deseada.
+        if(offset == 0)
             continue;
         
-        
-        // Ignorar Name:
-        p = line + salto;
-        // Ignorar espacio en blanco
-        while(isspace(*p)) ++p;
-        printf("%s", p);
-        salto = 0;
-        // break;
+        snprintf(psinfo[j++], TAM, "%s%s", attr_name, value);
+        offset = 0;
     }
 
     fclose(statusf);
+    return psinfo;
 }
 
-int searchInFile2(char *filename, char *s){
-    FILE *fp;
-    int findResutl = 0;
-    char temp[512];
-
-    // Abre el archivo y lo asigna a la variable fp
-    if((fp = fopen(filename, "r")) == NULL){
-        return -1;
-    }
-
-    // Busca la cadena en el archivo e imprime la linea completa que contiene 
-    // dicha cadena.
-    while(fgets(temp, 512, fp) != NULL){
-        if(strstr(temp, s) != NULL){
-            printf("\n%s\n", temp);
-            findResutl++;
-        }
-    }
-
-    // Cierra el archivo si todavia está abierto.
-    if(fp){
-        fclose(fp);
-    }   
-    return 0;
+char * trim(int left_offset, char *line){
+    // Este puntero nos ayudará a remover el espacio en blanco.
+    char *trimmed_line;
+    // Ignorar la leyenda, por ejemplo Name:   gedit, se borra Name:
+    trimmed_line = line + left_offset;
+    // Ignorar espacio en blanco
+    // Del ejemplo 1, se puede obtener trimmed_line = "  gedit", la siguiente instrucción
+    // devuelve trimmed_line = "gedit"
+    // *trimmed_line caracter a la izquierda de trimmed_line, ++trimmed_line remueve un caracter a la izquierda de trimmed_line.
+    // de trimmed_line.
+    while(isspace(*trimmed_line)) ++trimmed_line;
+    return trimmed_line;
 }

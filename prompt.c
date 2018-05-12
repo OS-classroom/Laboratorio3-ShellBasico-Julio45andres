@@ -8,8 +8,10 @@
 #include <fcntl.h>
 
 #include "parser.h"
+#include "psinfo.h"
 
 #define TAM 100
+#define NUM_PROCS 50
 /*
 typedef struct String {
     char *val;
@@ -29,18 +31,11 @@ char* f_pwd();
 void f_copy(char *source, char *destination);
 
 int main(void){
-    const char *mypath[] = {
-        "/home/julio/bin",
-        "/home/julio/bin/prompt",
-        NULL
-    };
-
     char ** items;
     bool end = false;
     int num, background;
     char expresion[TAM];
     char *cmd;
-    char proc_path[TAM];
 
     while(!end){
         /*Wait for input*/
@@ -83,9 +78,19 @@ int main(void){
             printf("time");
         }
         else if(equals(cmd, "psinfo")){
-            snprintf(proc_path, TAM, "%s/%s", mypath[1], cmd);
-            invoke(proc_path, items, background);
-            printf("\n");
+            Proc procs[NUM_PROCS];
+            print_info(procs, num, items);
+            // char *cwd;
+            // cwd = f_pwd();
+            // if(cwd != NULL){
+            //     printf("%s\n", cwd);
+            // }
+            // else{
+            //     strncpy(cwd, mypath[1], TAM*10);
+            // }
+            // snprintf(proc_path, TAM, "%s/%s", cwd, cmd);
+            // invoke(proc_path, items, background);
+            // printf("\n");
         }
         else if(equals(cmd, "grep")){
             invoke("/bin/grep", items, background);
