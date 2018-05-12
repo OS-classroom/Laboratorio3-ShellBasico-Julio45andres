@@ -5,3 +5,14 @@ En este shell llamado Bash&Roll  los comandos se ejecutan de manera idéntica a 
 Bash&Roll 🤘 > cp poema.txt t.txt  
 
 Se copia el contenido del archivo poema.txt al archivo t.txt, si t.txt no existe, el comando crea este archvo.
+
+La lista de comandos es la siguiente
+
+   * pwd
+   * cp
+   * echo
+   * clear
+   * kill
+   * psinfo
+   * grep
+   * exit
